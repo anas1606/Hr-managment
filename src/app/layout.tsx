@@ -14,7 +14,7 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "Quba Infotech Attendance",
+  title: "Quba Infotech HRMS",
   description:
     "Staff attendance punch-in and admin management for Quba Infotech",
   icons: {
