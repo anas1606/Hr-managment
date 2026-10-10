@@ -17,6 +17,13 @@ export const metadata: Metadata = {
   title: "Quba Infotech Attendance",
   description:
     "Staff attendance punch-in and admin management for Quba Infotech",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
