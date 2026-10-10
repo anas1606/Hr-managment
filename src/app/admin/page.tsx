@@ -48,22 +48,22 @@ export default function AdminDashboardPage() {
   ];
 
   return (
-    <div className="space-y-6 fade-up">
+    <div className="space-y-5 sm:space-y-6">
       <div>
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight md:text-3xl">
           Dashboard
         </h1>
-        <p className="text-subtext text-sm mt-1">
+        <p className="mt-1 text-sm text-subtext">
           Overview of attendance and day off activity
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(({ label, value, icon: Icon, href }) => (
           <Link
             key={label}
             href={href}
-            className="liquid-glass rounded-[24px] p-5 transition hover:-translate-y-0.5"
+            className="liquid-glass rounded-[24px] p-5 transition hover:-translate-y-0.5 sm:rounded-[28px]"
           >
             <div className="flex items-center justify-between">
               <p className="text-sm text-subtext">{label}</p>
@@ -71,7 +71,7 @@ export default function AdminDashboardPage() {
                 <Icon className="h-4 w-4" />
               </span>
             </div>
-            <p className="mt-4 text-3xl font-heading font-semibold">{value}</p>
+            <p className="mt-4 font-heading text-3xl font-semibold">{value}</p>
           </Link>
         ))}
       </div>

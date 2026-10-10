@@ -28,7 +28,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const initial = (data?.user?.name || "A").slice(0, 1).toUpperCase();
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-dvh">
       <aside className="liquid-sidebar fixed bottom-4 left-4 top-4 z-30 hidden w-[260px] flex-col overflow-hidden rounded-[36px] md:flex">
         <div className="px-5 py-6">
           <div className="flex items-center gap-3">
@@ -69,8 +69,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-cyan font-semibold text-white">
               {initial}
             </div>
-            <div>
-              <p className="text-sm font-semibold">{data?.user?.name}</p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">
+                {data?.user?.name}
+              </p>
               <p className="text-xs text-subtext">Administrator</p>
             </div>
           </div>
@@ -84,29 +86,36 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="md:pl-[284px]">
-        <header className="liquid-glass sticky top-0 z-20 border-b border-white/40 px-4 py-3 md:hidden">
+        <header className="liquid-glass sticky top-0 z-20 mx-3 mt-3 rounded-[22px] px-4 py-3 md:hidden">
           <p className="font-heading font-semibold text-primary">
             Quba Infotech Admin
           </p>
           <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-            {links.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  "whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium",
-                  pathname === href ||
-                    (href !== "/admin" && pathname.startsWith(href))
-                    ? "bg-primary text-white"
-                    : "bg-white/50 text-primary"
-                )}
-              >
-                {label}
-              </Link>
-            ))}
+            {links.map(({ href, label }) => {
+              const active =
+                href === "/admin"
+                  ? pathname === "/admin"
+                  : pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "whitespace-nowrap rounded-2xl px-3 py-1.5 text-xs font-medium transition",
+                    active
+                      ? "bg-gradient-to-r from-primary to-primary-dark text-white"
+                      : "bg-white/60 text-primary"
+                  )}
+                >
+                  {label}
+                </Link>
+              );
+            })}
           </div>
         </header>
-        <main className="px-4 py-5 md:px-8 md:py-8">{children}</main>
+        <main className="px-3 py-4 sm:px-4 sm:py-5 md:px-8 md:py-8">
+          <div className="mx-auto w-full max-w-6xl fade-up">{children}</div>
+        </main>
       </div>
     </div>
   );

@@ -106,18 +106,20 @@ export function LeavesManager() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Day off approvals</h1>
-          <p className="text-sm text-subtext">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight md:text-3xl">
+            Day off approvals
+          </h1>
+          <p className="mt-1 text-sm text-subtext">
             Review staff day off requests & configure PL policy
           </p>
         </div>
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="rounded-2xl border border-border bg-white px-3 py-2.5"
+          className="field-input w-auto min-w-[140px]"
         >
           <option value="PENDING">Pending</option>
           <option value="APPROVED">Approved</option>
@@ -128,7 +130,7 @@ export function LeavesManager() {
 
       <form
         onSubmit={savePolicy}
-        className="liquid-glass space-y-4 rounded-[24px] p-5 sm:rounded-[28px]"
+        className="liquid-glass space-y-4 rounded-[24px] p-4 sm:rounded-[28px] sm:p-5"
       >
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-soft-blue text-primary">
@@ -211,7 +213,7 @@ export function LeavesManager() {
           <button
             type="submit"
             disabled={policySaving}
-            className="cursor-pointer rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-60"
           >
             {policySaving ? "Saving..." : "Save PL policy"}
           </button>
@@ -225,7 +227,7 @@ export function LeavesManager() {
         {leaves.map((leave) => (
           <div
             key={leave.id}
-            className="rounded-[24px] bg-white p-5 card-shadow"
+            className="liquid-glass rounded-[24px] p-4 sm:rounded-[28px] sm:p-5"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -248,12 +250,12 @@ export function LeavesManager() {
                       Track
                     </span>
                   )}
-                  <span className="text-sm">
+                  <span className="text-sm font-medium">
                     {format(new Date(leave.fromDate), "MMM d")} –{" "}
                     {format(new Date(leave.toDate), "MMM d, yyyy")}
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-subtext">{leave.reason}</p>
+                <p className="mt-2 text-sm text-subtext">{leave.reason}</p>
               </div>
               <span
                 className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -276,32 +278,34 @@ export function LeavesManager() {
                     setNotes((n) => ({ ...n, [leave.id]: e.target.value }))
                   }
                   placeholder="Optional admin note"
-                  className="w-full rounded-2xl border border-border bg-soft-blue-2 px-3 py-2.5"
+                  className="field-input"
                 />
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => decide(leave.id, "APPROVED")}
-                    className="cursor-pointer rounded-2xl bg-primary px-4 py-2 text-sm font-medium text-white"
+                    className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark"
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => decide(leave.id, "REJECTED")}
-                    className="cursor-pointer rounded-2xl bg-danger px-4 py-2 text-sm font-medium text-white"
+                    className="rounded-2xl bg-danger px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
                   >
                     Reject
                   </button>
                 </div>
               </div>
             ) : leave.adminNote ? (
-              <p className="mt-3 text-sm text-primary">
+              <p className="mt-3 rounded-xl bg-soft-blue/60 px-3 py-2 text-sm text-primary">
                 Note: {leave.adminNote}
               </p>
             ) : null}
           </div>
         ))}
         {leaves.length === 0 ? (
-          <p className="text-sm text-subtext">No day off requests.</p>
+          <div className="liquid-glass rounded-[24px] px-4 py-10 text-center text-sm text-subtext sm:rounded-[28px]">
+            No day off requests.
+          </div>
         ) : null}
       </div>
     </div>
