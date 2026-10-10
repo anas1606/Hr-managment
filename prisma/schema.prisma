@@ -18,6 +18,12 @@ enum LeaveStatus {
   REJECTED
 }
 
+enum LeaveType {
+  PL // Paid Leave
+  GL // General Leave
+  SL // Sick Leave
+}
+
 model User {
   id           String         @id @default(cuid())
   username     String         @unique
@@ -50,15 +56,28 @@ model Attendance {
   checkOutAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+  breaks     Break[]
 
   @@unique([userId, date])
   @@index([date])
+}
+
+model Break {
+  id           String     @id @default(cuid())
+  attendanceId String
+  attendance   Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  startAt      DateTime
+  endAt        DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@index([attendanceId])
 }
 
 model LeaveRequest {
   id           String      @id @default(cuid())
   userId       String
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         LeaveType   @default(GL)
   fromDate     DateTime    @db.Date
   toDate       DateTime    @db.Date
   reason       String
@@ -69,6 +88,17 @@ model LeaveRequest {
 
   @@index([status])
   @@index([userId])
+  @@index([type])
+}
+
+/// Singleton-style leave policy (use id = "default")
+model LeavePolicy {
+  id            String   @id @default("default")
+  plPerMonth    Float    @default(1.5)
+  plPerYear     Float    @default(18)
+  /// Unused PL carries month-to-month within the year, then stalls (no carry to next year) after this month (1–12)
+  yearEndMonth  Int      @default(12)
+  updatedAt     DateTime @updatedAt
 }
 
 model Holiday {

@@ -74,7 +74,7 @@ export default function LoginPage() {
             simplified.
           </p>
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/75 sm:text-base">
-            Punch in, track leave, and keep your team day in sync — all in one
+            Punch in, track day offs, and keep your team day in sync — all in one
             place.
           </p>
         </div>

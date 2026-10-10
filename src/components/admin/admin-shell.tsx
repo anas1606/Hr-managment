@@ -18,7 +18,7 @@ const links = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/staff", label: "Staff", icon: Users },
   { href: "/admin/attendance", label: "Attendance", icon: ClipboardList },
-  { href: "/admin/leaves", label: "Leaves", icon: Plane },
+  { href: "/admin/leaves", label: "Day off", icon: Plane },
   { href: "/admin/holidays", label: "Holidays", icon: CalendarDays },
 ];
 

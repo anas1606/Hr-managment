@@ -122,6 +122,28 @@ h4 {
     0 12px 40px rgba(15, 53, 96, 0.08);
 }
 
+.field-input {
+  display: block;
+  width: 100%;
+  border-radius: 1rem;
+  border: 1px solid rgba(215, 227, 240, 0.95);
+  background: rgba(242, 247, 255, 0.9);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.field-input:focus {
+  border-color: rgba(0, 111, 199, 0.45);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(0, 111, 199, 0.12);
+}
+
 .glass-card {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.95);

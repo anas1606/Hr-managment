@@ -28,6 +28,9 @@ export async function POST() {
         date,
         checkInAt: now,
       },
+      include: {
+        breaks: { orderBy: { startAt: "asc" } },
+      },
     });
     return NextResponse.json({ action: "CHECK_IN", record });
   }
@@ -36,6 +39,9 @@ export async function POST() {
     const record = await prisma.attendance.update({
       where: { id: existing.id },
       data: { checkInAt: now },
+      include: {
+        breaks: { orderBy: { startAt: "asc" } },
+      },
     });
     return NextResponse.json({ action: "CHECK_IN", record });
   }
@@ -47,9 +53,23 @@ export async function POST() {
     );
   }
 
+  const openBreak = await prisma.break.findFirst({
+    where: { attendanceId: existing.id, endAt: null },
+  });
+
+  if (openBreak) {
+    return NextResponse.json(
+      { error: "End your break before checking out" },
+      { status: 400 }
+    );
+  }
+
   const record = await prisma.attendance.update({
     where: { id: existing.id },
     data: { checkOutAt: now },
+    include: {
+      breaks: { orderBy: { startAt: "asc" } },
+    },
   });
 
   return NextResponse.json({ action: "CHECK_OUT", record });

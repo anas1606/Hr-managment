@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Home, UserRound } from "lucide-react";
+import { CalendarDays, Home, Plane, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/staff", label: "Home", icon: Home },
   { href: "/staff/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/staff/leaves", label: "Day off", icon: Plane },
   { href: "/staff/profile", label: "Profile", icon: UserRound },
 ];
 
@@ -27,7 +28,7 @@ export function BottomNav() {
               key={href}
               href={href}
               className={cn(
-                "flex flex-col items-center gap-0.5 rounded-2xl px-5 py-2 text-[11px] transition",
+                "flex flex-col items-center gap-0.5 rounded-2xl px-3 py-2 text-[10px] transition sm:px-4 sm:text-[11px]",
                 active
                   ? "bg-white text-primary shadow-sm"
                   : "opacity-85 hover:opacity-100"

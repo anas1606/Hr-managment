@@ -34,7 +34,7 @@ export default function AdminDashboardPage() {
       href: "/admin/attendance",
     },
     {
-      label: "Pending leaves",
+      label: "Pending day offs",
       value: stats?.pendingLeaves ?? "—",
       icon: Plane,
       href: "/admin/leaves",
@@ -54,7 +54,7 @@ export default function AdminDashboardPage() {
           Dashboard
         </h1>
         <p className="text-subtext text-sm mt-1">
-          Overview of attendance and leave activity
+          Overview of attendance and day off activity
         </p>
       </div>
 

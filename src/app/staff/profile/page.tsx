@@ -63,7 +63,7 @@ export default function StaffProfilePage() {
             href="/staff/leaves"
             className="flex items-center justify-center gap-2 rounded-2xl border border-border py-3 font-medium"
           >
-            <Plane className="h-4 w-4" /> Leave requests
+            <Plane className="h-4 w-4" /> Day off requests
           </Link>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}

@@ -37,7 +37,18 @@ async function main() {
     },
   });
 
-  console.log("Seeded admin (admin/admin123) and staff (hassan/staff123)");
+  await prisma.leavePolicy.upsert({
+    where: { id: "default" },
+    update: {},
+    create: {
+      id: "default",
+      plPerMonth: 1.5,
+      plPerYear: 18,
+      yearEndMonth: 12,
+    },
+  });
+
+  console.log("Seeded admin (admin/admin123), staff (hassan/staff123), PL policy 1.5/mo");
 }
 
 main()

@@ -23,11 +23,17 @@ export async function GET(req: NextRequest) {
           date: todayDate(),
         },
       },
+      include: {
+        breaks: { orderBy: { startAt: "asc" } },
+      },
     }),
     prisma.attendance.findMany({
       where: {
         userId: session.user.id,
         date: { gte: from, lte: to },
+      },
+      include: {
+        breaks: { orderBy: { startAt: "asc" } },
       },
       orderBy: { date: "desc" },
     }),

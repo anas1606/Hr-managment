@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/staff", label: "Home", icon: Home },
   { href: "/staff/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/staff/leaves", label: "Leaves", icon: Plane },
+  { href: "/staff/leaves", label: "Day off", icon: Plane },
   { href: "/staff/profile", label: "Profile", icon: UserRound },
 ];
 
@@ -20,7 +20,9 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
   const { data } = useSession();
   const initial = (data?.user?.name || "?").slice(0, 1).toUpperCase();
   const fillScreen =
-    pathname === "/staff" || pathname.startsWith("/staff/calendar");
+    pathname === "/staff" ||
+    pathname.startsWith("/staff/calendar") ||
+    pathname.startsWith("/staff/leaves");
 
   return (
     <div className="min-h-dvh">
@@ -86,7 +88,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
         className={cn(
           "bg-transparent md:pl-[260px] lg:pl-[272px]",
           fillScreen
-            ? "h-dvh overflow-hidden pb-[5.75rem] md:pb-0"
+            ? "min-h-dvh pb-28 md:h-dvh md:overflow-hidden md:pb-0"
             : "min-h-dvh pb-28 md:pb-8"
         )}
       >
@@ -94,7 +96,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
           className={cn(
             "w-full bg-transparent",
             fillScreen
-              ? "flex h-full min-h-0 flex-col px-3 pt-3 pb-2 sm:px-4 md:p-5 lg:p-6"
+              ? "flex min-h-0 flex-col px-3 pt-3 pb-2 sm:px-4 md:h-full md:p-5 lg:p-6"
               : "mx-auto max-w-6xl px-3 pt-3 pb-4 sm:px-4 sm:py-5 md:px-8 md:py-8"
           )}
         >

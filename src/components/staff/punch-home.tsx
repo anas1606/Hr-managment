@@ -7,14 +7,23 @@ import { format } from "date-fns";
 import {
   CalendarDays,
   CheckCircle2,
+  Coffee,
   LogIn,
   LogOut,
+  Play,
   Quote,
   RefreshCw,
   Timer,
   Trash2,
 } from "lucide-react";
-import { cn, formatHours, formatTime, greetingForNow } from "@/lib/utils";
+import {
+  breakSeconds,
+  cn,
+  formatDuration,
+  formatHours,
+  formatTime,
+  greetingForNow,
+} from "@/lib/utils";
 import {
   backgroundAtIndex,
   dayOfYearIndex,
@@ -22,11 +31,18 @@ import {
   QUOTE_ROTATE_SECONDS,
 } from "@/lib/quotes";
 
+type BreakRecord = {
+  id: string;
+  startAt: string;
+  endAt: string | null;
+};
+
 type Attendance = {
   id: string;
   checkInAt: string | null;
   checkOutAt: string | null;
   date: string;
+  breaks?: BreakRecord[];
 };
 
 export function PunchHome() {
@@ -35,8 +51,12 @@ export function PunchHome() {
   const [today, setToday] = useState<Attendance | null>(null);
   const [loading, setLoading] = useState(true);
   const [punching, setPunching] = useState(false);
+  const [breaking, setBreaking] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<
+    "CHECK_IN" | "CHECK_OUT" | "BREAK_START" | "BREAK_END" | null
+  >(null);
   const [error, setError] = useState("");
   const [quoteOffset, setQuoteOffset] = useState(0);
   const [quoteKey, setQuoteKey] = useState(0);
@@ -66,17 +86,38 @@ export function PunchHome() {
     return () => clearInterval(t);
   }, [nextQuote, quoteKey]);
 
+  const activeBreak = useMemo(
+    () => today?.breaks?.find((b) => !b.endAt) || null,
+    [today]
+  );
+
   const mode = useMemo(() => {
     if (!today?.checkInAt) return "CHECK_IN" as const;
+    if (activeBreak) return "ON_BREAK" as const;
     if (!today?.checkOutAt) return "CHECK_OUT" as const;
     return "DONE" as const;
-  }, [today]);
+  }, [today, activeBreak]);
+
+  const breakTotalLabel = useMemo(
+    () => formatDuration(breakSeconds(today?.breaks, now)),
+    [today?.breaks, now]
+  );
 
   const quoteIndex = dayOfYearIndex(now) + quoteOffset;
   const quote = useMemo(() => quoteAtIndex(quoteIndex), [quoteIndex]);
 
+  function requestPunch() {
+    if (mode === "DONE" || mode === "ON_BREAK" || punching || loading) return;
+    setConfirmAction(mode === "CHECK_IN" ? "CHECK_IN" : "CHECK_OUT");
+  }
+
+  function requestBreak() {
+    if (!today?.checkInAt || today.checkOutAt || breaking || loading) return;
+    setConfirmAction(activeBreak ? "BREAK_END" : "BREAK_START");
+  }
+
   async function punch() {
-    if (mode === "DONE") return;
+    if (mode === "DONE" || mode === "ON_BREAK") return;
     setPunching(true);
     setError("");
     const res = await fetch("/api/attendance/punch", { method: "POST" });
@@ -87,6 +128,34 @@ export function PunchHome() {
       return;
     }
     setToday(json.record);
+    setConfirmAction(null);
+  }
+
+  async function toggleBreak() {
+    if (!today?.checkInAt || today.checkOutAt) return;
+    setBreaking(true);
+    setError("");
+    const res = await fetch("/api/attendance/break", {
+      method: activeBreak ? "PATCH" : "POST",
+    });
+    const json = await res.json();
+    setBreaking(false);
+    if (!res.ok) {
+      setError(json.error || "Could not update break");
+      return;
+    }
+    setToday(json.record);
+    setConfirmAction(null);
+  }
+
+  async function confirmPendingAction() {
+    if (confirmAction === "CHECK_IN" || confirmAction === "CHECK_OUT") {
+      await punch();
+      return;
+    }
+    if (confirmAction === "BREAK_START" || confirmAction === "BREAK_END") {
+      await toggleBreak();
+    }
   }
 
   async function deleteTodayPunch() {
@@ -151,50 +220,117 @@ export function PunchHome() {
           </p>
         </div>
 
-        <div className="flex min-h-0 flex-1 items-center justify-center py-4 sm:py-5">
+        <div className="flex min-h-0 flex-1 items-center justify-center px-2 py-5 sm:px-4 sm:py-6">
+          {/* Centered punch; Break docks to the bottom-right so mobile stays balanced */}
           <div
             className={cn(
-              "rounded-full p-[3px]",
-              mode === "DONE"
-                ? "bg-gradient-to-br from-primary/40 to-cyan/40"
-                : "punch-ring",
-              mode !== "DONE" && "pulse-soft"
+              "relative",
+              today?.checkInAt && !today.checkOutAt
+                ? "pr-8 sm:pr-10"
+                : ""
             )}
           >
-            <button
-              onClick={punch}
-              disabled={punching || loading || mode === "DONE"}
+            <div
               className={cn(
-                "punch-shadow relative flex h-[9.25rem] w-[9.25rem] flex-col items-center justify-center rounded-full border-[6px] border-white/80 transition duration-200 active:scale-[0.97] sm:h-44 sm:w-44 md:h-48 md:w-48 lg:h-52 lg:w-52",
-                mode === "CHECK_OUT" &&
-                  "bg-gradient-to-b from-white/95 to-red-50/90 text-danger",
-                mode === "CHECK_IN" &&
-                  "bg-gradient-to-b from-white/95 to-soft-blue/90 text-primary",
-                mode === "DONE" &&
-                  "cursor-default bg-gradient-to-b from-white/95 to-emerald-50/90 text-success",
-                punching && "opacity-80"
+                "rounded-full p-[3px]",
+                mode === "DONE"
+                  ? "bg-gradient-to-br from-primary/40 to-cyan/40"
+                  : mode === "ON_BREAK"
+                    ? "bg-gradient-to-br from-amber-400/50 to-orange-400/40"
+                    : "punch-ring",
+                mode !== "DONE" && mode !== "ON_BREAK" && "pulse-soft"
               )}
             >
-              {mode === "CHECK_OUT" ? (
-                <LogOut className="mb-1.5 h-9 w-9 sm:mb-2 sm:h-11 sm:w-11" strokeWidth={2.2} />
-              ) : mode === "DONE" ? (
-                <CheckCircle2 className="mb-1.5 h-9 w-9 sm:mb-2 sm:h-11 sm:w-11" strokeWidth={2.2} />
-              ) : (
-                <LogIn className="mb-1.5 h-9 w-9 sm:mb-2 sm:h-11 sm:w-11" strokeWidth={2.2} />
-              )}
-              <span className="text-base font-semibold tracking-tight sm:text-lg">
-                {mode === "CHECK_IN"
-                  ? "Check In"
-                  : mode === "CHECK_OUT"
-                    ? "Check Out"
-                    : "Completed"}
-              </span>
-              {punching ? (
-                <span className="absolute bottom-6 text-xs text-subtext sm:bottom-7">
-                  Saving...
+              <button
+                type="button"
+                onClick={requestPunch}
+                disabled={
+                  punching || loading || mode === "DONE" || mode === "ON_BREAK"
+                }
+                className={cn(
+                  "punch-shadow relative flex h-[8.5rem] w-[8.5rem] flex-col items-center justify-center rounded-full border-[6px] border-white/80 transition duration-200 active:scale-[0.97] sm:h-44 sm:w-44 md:h-48 md:w-48 lg:h-52 lg:w-52",
+                  mode === "CHECK_OUT" &&
+                    "cursor-pointer bg-gradient-to-b from-white/95 to-red-50/90 text-danger",
+                  mode === "CHECK_IN" &&
+                    "cursor-pointer bg-gradient-to-b from-white/95 to-soft-blue/90 text-primary",
+                  mode === "ON_BREAK" &&
+                    "cursor-not-allowed bg-gradient-to-b from-white/95 to-amber-50/90 text-amber-600",
+                  mode === "DONE" &&
+                    "cursor-default bg-gradient-to-b from-white/95 to-emerald-50/90 text-success",
+                  punching && "opacity-80"
+                )}
+              >
+                {mode === "CHECK_OUT" ? (
+                  <LogOut
+                    className="mb-1 h-8 w-8 sm:mb-2 sm:h-11 sm:w-11"
+                    strokeWidth={2.2}
+                  />
+                ) : mode === "ON_BREAK" ? (
+                  <Coffee
+                    className="mb-1 h-8 w-8 sm:mb-2 sm:h-11 sm:w-11"
+                    strokeWidth={2.2}
+                  />
+                ) : mode === "DONE" ? (
+                  <CheckCircle2
+                    className="mb-1 h-8 w-8 sm:mb-2 sm:h-11 sm:w-11"
+                    strokeWidth={2.2}
+                  />
+                ) : (
+                  <LogIn
+                    className="mb-1 h-8 w-8 sm:mb-2 sm:h-11 sm:w-11"
+                    strokeWidth={2.2}
+                  />
+                )}
+                <span className="text-sm font-semibold tracking-tight sm:text-lg">
+                  {mode === "CHECK_IN"
+                    ? "Check In"
+                    : mode === "ON_BREAK"
+                      ? "On Break"
+                      : mode === "CHECK_OUT"
+                        ? "Check Out"
+                        : "Completed"}
                 </span>
-              ) : null}
-            </button>
+                {punching ? (
+                  <span className="absolute bottom-5 text-xs text-subtext sm:bottom-7">
+                    Saving...
+                  </span>
+                ) : mode === "ON_BREAK" ? (
+                  <span className="absolute bottom-4 text-[11px] text-subtext sm:bottom-6">
+                    Tap Resume
+                  </span>
+                ) : null}
+              </button>
+            </div>
+
+            {today?.checkInAt && !today.checkOutAt ? (
+              <button
+                type="button"
+                onClick={requestBreak}
+                disabled={breaking || loading}
+                className={cn(
+                  "punch-shadow absolute -right-1 bottom-1 z-10 flex cursor-pointer flex-col items-center justify-center rounded-full border-[4px] border-white transition duration-200 active:scale-[0.97] sm:-right-2 sm:bottom-2 sm:border-[5px]",
+                  "h-[4.5rem] w-[4.5rem] sm:h-[5.5rem] sm:w-[5.5rem]",
+                  activeBreak
+                    ? "bg-gradient-to-b from-white to-emerald-50 text-emerald-600 shadow-lg shadow-emerald-500/20"
+                    : "bg-gradient-to-b from-white to-amber-50 text-amber-600 shadow-lg shadow-amber-500/20",
+                  (breaking || loading) && "cursor-not-allowed opacity-80"
+                )}
+                aria-label={activeBreak ? "End break" : "Take a break"}
+              >
+                {activeBreak ? (
+                  <Play className="mb-0.5 h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.2} />
+                ) : (
+                  <Coffee className="mb-0.5 h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.2} />
+                )}
+                <span className="text-[10px] font-semibold leading-none sm:text-xs">
+                  {breaking
+                    ? "..."
+                    : activeBreak
+                      ? "Resume"
+                      : "Break"}
+                </span>
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -205,12 +341,24 @@ export function PunchHome() {
         ) : null}
 
         <div className="mt-auto shrink-0 space-y-2">
-          <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2.5">
             <StatTile
               icon={<LogIn className="h-3.5 w-3.5" />}
               tone="primary"
               label="Check In"
               value={formatTime(today?.checkInAt)}
+            />
+            <StatTile
+              icon={<Coffee className="h-3.5 w-3.5" />}
+              tone="amber"
+              label="Break"
+              value={
+                today?.checkInAt
+                  ? today.breaks?.length
+                    ? breakTotalLabel
+                    : "--"
+                  : "--:--"
+              }
             />
             <StatTile
               icon={<LogOut className="h-3.5 w-3.5" />}
@@ -222,7 +370,11 @@ export function PunchHome() {
               icon={<Timer className="h-3.5 w-3.5" />}
               tone="cyan"
               label="Total Hrs"
-              value={formatHours(today?.checkInAt, today?.checkOutAt)}
+              value={formatHours(
+                today?.checkInAt,
+                today?.checkOutAt,
+                today?.breaks
+              )}
             />
           </div>
 
@@ -231,7 +383,7 @@ export function PunchHome() {
               type="button"
               onClick={() => setShowDeleteModal(true)}
               disabled={deleting}
-              className="liquid-glass group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-red-50/50 sm:rounded-[20px] sm:px-3.5 sm:py-3"
+              className="liquid-glass group flex w-full cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-red-50/50 sm:rounded-[20px] sm:px-3.5 sm:py-3"
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-md shadow-red-500/25">
                 <Trash2 className="h-4 w-4" />
@@ -262,16 +414,142 @@ export function PunchHome() {
         compact
       />
 
+      {confirmAction ? (
+        <ConfirmActionModal
+          action={confirmAction}
+          busy={punching || breaking}
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={confirmPendingAction}
+        />
+      ) : null}
+
       {showDeleteModal ? (
         <DeletePunchModal
           checkIn={formatTime(today?.checkInAt)}
           checkOut={formatTime(today?.checkOutAt)}
-          total={formatHours(today?.checkInAt, today?.checkOutAt)}
+          total={formatHours(
+            today?.checkInAt,
+            today?.checkOutAt,
+            today?.breaks
+          )}
           deleting={deleting}
           onCancel={() => setShowDeleteModal(false)}
           onConfirm={deleteTodayPunch}
         />
       ) : null}
+    </div>
+  );
+}
+
+function ConfirmActionModal({
+  action,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  action: "CHECK_IN" | "CHECK_OUT" | "BREAK_START" | "BREAK_END";
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const copy = {
+    CHECK_IN: {
+      title: "Check in now?",
+      body: "This will start your attendance for today.",
+      confirm: "Yes, check in",
+      tone: "primary" as const,
+      icon: <LogIn className="h-5 w-5" />,
+    },
+    CHECK_OUT: {
+      title: "Check out now?",
+      body: "This will end your work day for today.",
+      confirm: "Yes, check out",
+      tone: "danger" as const,
+      icon: <LogOut className="h-5 w-5" />,
+    },
+    BREAK_START: {
+      title: "Take a break?",
+      body: "Work time will pause until you resume.",
+      confirm: "Yes, take break",
+      tone: "amber" as const,
+      icon: <Coffee className="h-5 w-5" />,
+    },
+    BREAK_END: {
+      title: "End break?",
+      body: "This will resume your work time.",
+      confirm: "Yes, resume",
+      tone: "success" as const,
+      icon: <Play className="h-5 w-5" />,
+    },
+  }[action];
+
+  const iconWrap =
+    copy.tone === "danger"
+      ? "from-red-500 to-rose-600 shadow-red-500/30"
+      : copy.tone === "amber"
+        ? "from-amber-500 to-orange-500 shadow-amber-500/30"
+        : copy.tone === "success"
+          ? "from-emerald-500 to-teal-600 shadow-emerald-500/30"
+          : "from-primary to-cyan shadow-primary/30";
+
+  const confirmBtn =
+    copy.tone === "danger"
+      ? "from-red-500 to-rose-600 shadow-red-500/25"
+      : copy.tone === "amber"
+        ? "from-amber-500 to-orange-500 shadow-amber-500/25"
+        : copy.tone === "success"
+          ? "from-emerald-500 to-teal-600 shadow-emerald-500/25"
+          : "from-primary to-primary-dark shadow-primary/25";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+      <button
+        type="button"
+        aria-label="Close"
+        className="absolute inset-0 cursor-pointer bg-slate-900/40 backdrop-blur-sm"
+        onClick={onCancel}
+        disabled={busy}
+      />
+      <div className="liquid-glass-strong relative z-10 w-full max-w-md rounded-[28px] p-5 shadow-2xl fade-up sm:p-6">
+        <div className="flex items-start gap-3">
+          <span
+            className={cn(
+              "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg",
+              iconWrap
+            )}
+          >
+            {copy.icon}
+          </span>
+          <div className="min-w-0">
+            <h3 className="font-heading text-lg font-semibold tracking-tight">
+              {copy.title}
+            </h3>
+            <p className="mt-1 text-sm text-subtext">{copy.body}</p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex gap-2.5">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="flex-1 cursor-pointer rounded-2xl border border-border bg-white/70 px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className={cn(
+              "flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-gradient-to-r px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60",
+              confirmBtn
+            )}
+          >
+            {busy ? "Saving..." : copy.confirm}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -382,7 +660,7 @@ function QuotesPanel({
     <div
       className={cn(
         "fade-up-delay relative flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/40 shadow-[0_18px_50px_rgba(15,53,96,0.14)] sm:rounded-[28px]",
-        compact ? "min-h-[220px]" : "min-h-0",
+        compact ? "min-h-[180px] max-h-[220px]" : "min-h-0",
         className
       )}
     >
@@ -467,7 +745,7 @@ function QuotesPanel({
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-white">View calendar</p>
             <p className="truncate text-xs text-white/70">
-              History, holidays & leaves
+              History, holidays & day offs
             </p>
           </div>
           <span className="text-sm font-medium text-white/90">Open →</span>
@@ -484,7 +762,7 @@ function StatTile({
   value,
 }: {
   icon: React.ReactNode;
-  tone: "primary" | "danger" | "cyan";
+  tone: "primary" | "danger" | "cyan" | "amber";
   label: string;
   value: string;
 }) {
@@ -493,22 +771,24 @@ function StatTile({
       ? "bg-danger/10 text-danger"
       : tone === "cyan"
         ? "bg-cyan/15 text-primary"
-        : "bg-primary/10 text-primary";
+        : tone === "amber"
+          ? "bg-amber-500/10 text-amber-600"
+          : "bg-primary/10 text-primary";
 
   return (
-    <div className="liquid-glass rounded-2xl px-2 py-2.5 text-center sm:rounded-[20px] sm:px-3 sm:py-3.5">
+    <div className="liquid-glass rounded-xl px-1 py-2 text-center sm:rounded-[20px] sm:px-3 sm:py-3.5">
       <div
         className={cn(
-          "mx-auto mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg sm:mb-2 sm:h-8 sm:w-8 sm:rounded-xl",
+          "mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-lg sm:mb-2 sm:h-8 sm:w-8 sm:rounded-xl",
           iconWrap
         )}
       >
         {icon}
       </div>
-      <p className="text-[10px] font-medium uppercase tracking-wide text-subtext sm:text-[11px]">
+      <p className="truncate text-[9px] font-medium uppercase tracking-wide text-subtext sm:text-[11px]">
         {label}
       </p>
-      <p className="mt-0.5 text-[13px] font-semibold leading-tight sm:mt-1 sm:text-base">
+      <p className="mt-0.5 truncate text-[11px] font-semibold leading-tight sm:mt-1 sm:text-base">
         {value}
       </p>
     </div>
