@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Quba Infotech Attendance Tracker
 
-## Getting Started
+Responsive web attendance system for **Quba Infotech** — staff punch in/out, leave requests, holidays, and an admin panel for staff and reports.
 
-First, run the development server:
+## Stack
+
+- Next.js 15 (App Router) + TypeScript + Tailwind CSS
+- Prisma + **PostgreSQL** (use **pgAdmin** to manage the database)
+- Auth.js (NextAuth) — username + password
+- Brand colors: primary `#006FC7`, cyan `#04BEF9`
+
+## Features (v1)
+
+### Admin
+- Dashboard overview
+- Add / edit / deactivate staff
+- Attendance report with filters + CSV export
+- Approve / reject leave requests
+- Manage company holidays
+
+### Staff
+- Mobile-first punch screen (Check In / Check Out)
+- Calendar with attendance, holidays, and leaves
+- Submit leave requests
+- Profile + logout
+
+> Salary / payout letter and GPS geo-fencing are deferred.
+
+## Prerequisites
+
+1. **Node.js** 18+
+2. **PostgreSQL** running locally (or Docker)
+3. **pgAdmin** (optional but recommended) to create/inspect the database
+
+## Database setup (pgAdmin)
+
+1. Open pgAdmin and connect to your PostgreSQL server.
+2. Create a database named `wheyer_tracker` (or any name you prefer).
+3. Note the host, port, username, and password.
+
+### Docker alternative (dev)
+
+If you prefer Docker instead of a local Postgres install:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker run -d --name wheyer-tracker-db \
+  -e POSTGRES_USER=wheyer \
+  -e POSTGRES_PASSWORD=wheyer123 \
+  -e POSTGRES_DB=wheyer_tracker \
+  -p 5433:5432 \
+  postgres:16-alpine
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Connect pgAdmin to `localhost:5433` with user `wheyer` / password `wheyer123`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## App setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cd tracker
+cp .env.example .env
+```
 
-## Learn More
+Edit `.env`:
 
-To learn more about Next.js, take a look at the following resources:
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/wheyer_tracker?schema=public"
+NEXTAUTH_SECRET="replace-with-a-long-random-string"
+NEXTAUTH_URL="http://localhost:3000"
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Then:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm install
+npx prisma migrate dev
+npm run db:seed
+npm run dev
+```
 
-## Deploy on Vercel
+Open [http://localhost:3000](http://localhost:3000).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Default logins (seed)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Role  | Username | Password  |
+|-------|----------|-----------|
+| Admin | `admin`  | `admin123` |
+| Staff | `hassan` | `staff123` |
+
+Change these after first login in production.
+
+## Useful scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start Next.js dev server |
+| `npm run db:migrate` | Run Prisma migrations |
+| `npm run db:seed` | Seed admin + demo staff |
+| `npm run db:studio` | Open Prisma Studio |
+| `npm run build` | Production build |
+
+## Project structure
+
+```
+src/app/
+  login/           # Username + password login
+  staff/           # Staff punch, calendar, leaves, profile
+  admin/           # Admin dashboard, staff, reports, leaves, holidays
+  api/             # Route handlers
+prisma/
+  schema.prisma    # Data model
+  seed.ts          # Seed script
+```
+# Hr-managment
