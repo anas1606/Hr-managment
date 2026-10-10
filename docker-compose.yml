@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: wheyer-tracker-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wheyer
+      POSTGRES_PASSWORD: wheyer123
+      POSTGRES_DB: wheyer_tracker
+    ports:
+      - "5433:5432"
+    volumes:
+      - wheyer_tracker_pgdata:/var/lib/postgresql/data
+
+volumes:
+  wheyer_tracker_pgdata:
