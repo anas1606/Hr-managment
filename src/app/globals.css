@@ -51,6 +51,30 @@ h4 {
   font-family: var(--font-sora), system-ui, sans-serif;
 }
 
+button,
+[type="button"],
+[type="submit"],
+[type="reset"],
+[role="button"],
+a,
+summary,
+label[for],
+select,
+input[type="checkbox"],
+input[type="radio"],
+input[type="file"],
+input[type="date"] {
+  cursor: pointer;
+}
+
+button:disabled,
+[type="button"]:disabled,
+[type="submit"]:disabled,
+[type="reset"]:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 /*
   Frosted panels — no backdrop-filter.
   Live blur paints a square layer past border-radius in Chromium/WebKit,
@@ -91,11 +115,16 @@ h4 {
 }
 
 .liquid-sidebar {
-  background: rgba(255, 255, 255, 0.45);
-  backdrop-filter: blur(32px) saturate(180%);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
-  border-right: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 4px 0 40px rgba(15, 53, 96, 0.04);
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(255, 255, 255, 0.88) 45%,
+    rgba(232, 241, 255, 0.94) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.98);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 1) inset,
+    0 16px 40px rgba(15, 53, 96, 0.1);
 }
 
 .punch-shadow {

@@ -26,8 +26,8 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh">
-      <aside className="liquid-sidebar hidden md:fixed md:inset-y-0 md:left-0 md:z-30 md:flex md:w-[260px] md:flex-col lg:w-[272px]">
-        <div className="px-5 py-6 lg:px-6 lg:py-7">
+      <aside className="liquid-sidebar hidden overflow-hidden md:fixed md:bottom-4 md:left-4 md:top-4 md:z-30 md:flex md:w-[248px] md:flex-col md:rounded-[32px] lg:w-[260px] lg:rounded-[36px]">
+        <div className="px-5 py-5 lg:px-5 lg:py-6">
           <div className="flex items-center gap-3">
             <BrandLogo size={40} className="h-10 w-10 shrink-0" />
             <div>
@@ -53,7 +53,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
                   "flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-medium transition",
                   active
                     ? "bg-gradient-to-r from-primary to-primary-dark text-white shadow-md shadow-primary/25"
-                    : "text-foreground/75 hover:bg-white/50 hover:text-primary"
+                    : "text-foreground/75 hover:bg-white/70 hover:text-primary"
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -63,7 +63,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="liquid-glass m-3 rounded-2xl p-4">
+        <div className="m-3 rounded-2xl border border-white/80 bg-white/55 p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-cyan font-semibold text-white">
               {initial}
@@ -77,7 +77,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
           </div>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/60 bg-white/60 px-3 py-2 text-sm font-medium text-danger backdrop-blur-md transition hover:bg-red-50/80"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/70 bg-white/80 px-3 py-2 text-sm font-medium text-danger transition hover:bg-red-50/80"
           >
             <LogOut className="h-4 w-4" /> Logout
           </button>
@@ -86,7 +86,7 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
 
       <main
         className={cn(
-          "bg-transparent md:pl-[260px] lg:pl-[272px]",
+          "bg-transparent md:pl-[272px] lg:pl-[284px]",
           fillScreen
             ? "min-h-dvh pb-28 md:h-dvh md:overflow-hidden md:pb-0"
             : "min-h-dvh pb-28 md:pb-8"
