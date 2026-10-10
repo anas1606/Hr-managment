@@ -105,6 +105,8 @@ export function LeavesView() {
     load();
   }, [load]);
 
+  const today = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
+
   const dayCount = useMemo(() => {
     if (!fromDate || !toDate) return null;
     const from = new Date(fromDate);
@@ -322,7 +324,12 @@ export function LeavesView() {
                 type="date"
                 required
                 value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
+                min={today}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setFromDate(next);
+                  if (toDate && toDate < next) setToDate(next);
+                }}
                 className="field-input"
               />
             </Field>
@@ -331,7 +338,7 @@ export function LeavesView() {
                 type="date"
                 required
                 value={toDate}
-                min={fromDate || undefined}
+                min={fromDate || today}
                 onChange={(e) => setToDate(e.target.value)}
                 className="field-input"
               />

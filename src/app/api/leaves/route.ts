@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { LeaveType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { toDateOnly } from "@/lib/utils";
+import { todayDate, toDateOnly } from "@/lib/utils";
 import { getPlBalance, leaveDays } from "@/lib/leave-policy";
 
 const LEAVE_TYPES: LeaveType[] = ["PL", "GL", "SL"];
@@ -69,6 +69,14 @@ export async function POST(req: NextRequest) {
   const leaveType = type as LeaveType;
   const from = toDateOnly(fromDate);
   const to = toDateOnly(toDate);
+  const today = todayDate();
+
+  if (from < today) {
+    return NextResponse.json(
+      { error: "Past dates cannot be selected for day off" },
+      { status: 400 }
+    );
+  }
 
   if (to < from) {
     return NextResponse.json(
