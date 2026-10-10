@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 type Staff = {
   id: string;
@@ -237,16 +238,37 @@ function Field({
   type?: string;
   required?: boolean;
 }) {
+  const [visible, setVisible] = useState(false);
+  const isPassword = type === "password";
+
   return (
     <div>
       <label className="text-sm font-medium">{label}</label>
-      <input
-        type={type}
-        required={required}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-2xl border border-border px-3 py-2.5 bg-soft-blue-2"
-      />
+      <div className="relative mt-1">
+        <input
+          type={isPassword && visible ? "text" : type}
+          required={required}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full rounded-2xl border border-border bg-soft-blue-2 py-2.5 pl-3 ${
+            isPassword ? "pr-11" : "pr-3"
+          }`}
+        />
+        {isPassword ? (
+          <button
+            type="button"
+            onClick={() => setVisible((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-subtext transition hover:text-primary"
+            aria-label={visible ? "Hide password" : "Show password"}
+          >
+            {visible ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
