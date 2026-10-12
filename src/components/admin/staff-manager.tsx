@@ -1,7 +1,15 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Eye, EyeOff, Pencil, Trash2, UserPlus } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Pencil,
+  Trash2,
+  Upload,
+  UserPlus,
+  WalletCards,
+} from "lucide-react";
 
 type Staff = {
   id: string;
@@ -29,6 +37,13 @@ export function StaffManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [slipStaffId, setSlipStaffId] = useState("");
+  const [slipMonth, setSlipMonth] = useState(String(new Date().getMonth() + 1));
+  const [slipYear, setSlipYear] = useState(String(new Date().getFullYear()));
+  const [slipNetPay, setSlipNetPay] = useState("");
+  const [slipFile, setSlipFile] = useState<File | null>(null);
+  const [slipBusy, setSlipBusy] = useState(false);
+  const [slipMsg, setSlipMsg] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch("/api/staff");
@@ -92,6 +107,35 @@ export function StaffManager() {
     if (!confirm("Delete this staff member?")) return;
     await fetch(`/api/staff/${id}`, { method: "DELETE" });
     load();
+  }
+
+  async function uploadSlip(e: FormEvent) {
+    e.preventDefault();
+    if (!slipStaffId || !slipFile) {
+      setSlipMsg("Select staff and a file");
+      return;
+    }
+    setSlipBusy(true);
+    setSlipMsg("");
+    const formData = new FormData();
+    formData.set("userId", slipStaffId);
+    formData.set("month", slipMonth);
+    formData.set("year", slipYear);
+    if (slipNetPay) formData.set("netPay", slipNetPay);
+    formData.set("file", slipFile);
+    const res = await fetch("/api/admin/salary-slips", {
+      method: "POST",
+      body: formData,
+    });
+    const json = await res.json();
+    setSlipBusy(false);
+    if (!res.ok) {
+      setSlipMsg(json.error || "Upload failed");
+      return;
+    }
+    setSlipFile(null);
+    setSlipNetPay("");
+    setSlipMsg("Salary slip uploaded for staff profile");
   }
 
   return (
@@ -196,6 +240,110 @@ export function StaffManager() {
               Cancel
             </button>
           ) : null}
+        </div>
+      </form>
+
+      <form
+        onSubmit={uploadSlip}
+        className="liquid-glass grid grid-cols-1 gap-3 rounded-[24px] p-4 sm:rounded-[28px] sm:p-5 md:grid-cols-2"
+      >
+        <div className="mb-1 flex items-center gap-2 md:col-span-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-soft-blue text-primary">
+            <WalletCards className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">Upload salary slip</p>
+            <p className="text-xs text-subtext">
+              Appears under staff Profile → Salary slips
+            </p>
+          </div>
+        </div>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-subtext">
+            Staff
+          </span>
+          <select
+            required
+            value={slipStaffId}
+            onChange={(e) => setSlipStaffId(e.target.value)}
+            className="field-input"
+          >
+            <option value="">Select staff</option>
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-subtext">
+            Net pay (optional)
+          </span>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={slipNetPay}
+            onChange={(e) => setSlipNetPay(e.target.value)}
+            className="field-input"
+            placeholder="e.g. 45000"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-subtext">
+            Month
+          </span>
+          <select
+            value={slipMonth}
+            onChange={(e) => setSlipMonth(e.target.value)}
+            className="field-input"
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>
+                {new Date(2026, m - 1, 1).toLocaleString("en", {
+                  month: "long",
+                })}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-subtext">
+            Year
+          </span>
+          <input
+            type="number"
+            required
+            min="2000"
+            value={slipYear}
+            onChange={(e) => setSlipYear(e.target.value)}
+            className="field-input"
+          />
+        </label>
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/30 bg-soft-blue/40 px-4 py-5 text-center transition hover:bg-soft-blue md:col-span-2">
+          <Upload className="h-5 w-5 text-primary" />
+          <span className="text-sm font-medium text-primary">
+            {slipFile ? slipFile.name : "Choose PDF or image"}
+          </span>
+          <input
+            type="file"
+            accept=".pdf,image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => setSlipFile(e.target.files?.[0] || null)}
+          />
+        </label>
+        {slipMsg ? (
+          <p className="text-sm text-primary md:col-span-2">{slipMsg}</p>
+        ) : null}
+        <div className="md:col-span-2">
+          <button
+            type="submit"
+            disabled={slipBusy}
+            className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-60"
+          >
+            {slipBusy ? "Uploading..." : "Upload salary slip"}
+          </button>
         </div>
       </form>
 

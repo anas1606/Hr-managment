@@ -30,6 +30,7 @@ import {
   quoteAtIndex,
   QUOTE_ROTATE_SECONDS,
 } from "@/lib/quotes";
+import { UserAvatar } from "@/components/staff/user-avatar";
 
 type BreakRecord = {
   id: string;
@@ -60,6 +61,7 @@ export function PunchHome() {
   const [error, setError] = useState("");
   const [quoteOffset, setQuoteOffset] = useState(0);
   const [quoteKey, setQuoteKey] = useState(0);
+  const [avatarPath, setAvatarPath] = useState<string | null>(null);
 
   const nextQuote = useCallback(() => {
     setQuoteOffset((o) => o + 1);
@@ -72,6 +74,13 @@ export function PunchHome() {
     const json = await res.json();
     setToday(json.today || null);
     setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((json) => setAvatarPath(json.user?.avatarPath || null))
+      .catch(() => setAvatarPath(null));
   }, []);
 
   useEffect(() => {
@@ -187,9 +196,18 @@ export function PunchHome() {
             {greetingForNow(now)} Mark your attendance
           </p>
         </div>
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-cyan font-heading text-base font-semibold text-white shadow-lg shadow-primary/30 sm:h-12 sm:w-12 md:h-14 md:w-14 md:text-lg">
-          {firstName.slice(0, 1).toUpperCase()}
-        </div>
+        <Link
+          href="/staff/profile"
+          className="shrink-0 rounded-2xl shadow-lg shadow-primary/30 transition hover:opacity-90"
+          aria-label="Open profile"
+        >
+          <UserAvatar
+            name={data?.user?.name}
+            avatarPath={avatarPath}
+            className="h-11 w-11 rounded-2xl sm:h-12 sm:w-12 md:h-14 md:w-14"
+            textClassName="font-heading text-base sm:text-lg md:text-xl"
+          />
+        </Link>
       </div>
 
       {/* Quotes — single right section (desktop spans full height) */}

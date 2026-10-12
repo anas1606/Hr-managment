@@ -32,19 +32,54 @@ model User {
   role         Role           @default(STAFF)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
-  staffProfile StaffProfile?
-  attendances  Attendance[]
+  staffProfile  StaffProfile?
+  attendances   Attendance[]
   leaveRequests LeaveRequest[]
+  documents     StaffDocument[]
+  salarySlips   SalarySlip[]
 }
 
 model StaffProfile {
-  id         String  @id @default(cuid())
-  userId     String  @unique
-  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  employeeId String? @unique
-  phone      String?
-  department String?
-  isActive   Boolean @default(true)
+  id                String  @id @default(cuid())
+  userId            String  @unique
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId        String? @unique
+  phone             String?
+  department        String?
+  isActive          Boolean @default(true)
+  avatarPath        String?
+  bankAccountHolder String?
+  bankName          String?
+  accountNumber     String?
+  ifscCode          String?
+  branchName        String?
+}
+
+model StaffDocument {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  fileName  String
+  filePath  String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model SalarySlip {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month     Int
+  year      Int
+  fileName  String
+  filePath  String
+  netPay    Float?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, month, year])
+  @@index([userId])
 }
 
 model Attendance {

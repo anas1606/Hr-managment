@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Home, LogOut, Plane, UserRound } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { BrandLogo } from "@/components/brand-logo";
 import { BottomNav } from "@/components/staff/bottom-nav";
+import { UserAvatar } from "@/components/staff/user-avatar";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -18,11 +20,19 @@ const links = [
 export function StaffShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data } = useSession();
-  const initial = (data?.user?.name || "?").slice(0, 1).toUpperCase();
+  const [avatarPath, setAvatarPath] = useState<string | null>(null);
   const fillScreen =
     pathname === "/staff" ||
     pathname.startsWith("/staff/calendar") ||
-    pathname.startsWith("/staff/leaves");
+    pathname.startsWith("/staff/leaves") ||
+    pathname.startsWith("/staff/profile");
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((json) => setAvatarPath(json.user?.avatarPath || null))
+      .catch(() => setAvatarPath(null));
+  }, [pathname]);
 
   return (
     <div className="min-h-dvh">
@@ -65,9 +75,12 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
 
         <div className="m-3 rounded-2xl border border-white/80 bg-white/55 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-cyan font-semibold text-white">
-              {initial}
-            </div>
+            <UserAvatar
+              name={data?.user?.name}
+              avatarPath={avatarPath}
+              className="h-10 w-10 shrink-0 rounded-xl"
+              textClassName="text-sm"
+            />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{data?.user?.name}</p>
               <p className="truncate text-xs text-subtext">
