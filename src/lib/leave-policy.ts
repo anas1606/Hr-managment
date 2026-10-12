@@ -62,7 +62,6 @@ export function accruedPlDays(
   joinedAt: Date,
   asOf: Date = new Date()
 ): number {
-  const year = asOf.getFullYear();
   const yearStart = startOfYear(asOf);
   const yearEnd = endOfYear(asOf);
 
