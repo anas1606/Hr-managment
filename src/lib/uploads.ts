@@ -1,7 +1,11 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 /** Keep under Vercel serverless body limit (~4.5MB). */
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -99,6 +103,44 @@ export async function saveUpload(
     fileName: file.name,
     filePath: `/${relativeDir.replace(/\\/g, "/")}/${storedName}`,
   };
+}
+
+/** Best-effort delete for S3 or local public uploads. */
+export async function deleteUpload(filePath: string): Promise<void> {
+  if (!filePath) return;
+
+  const aws = s3Config();
+  if (aws && filePath.includes(".amazonaws.com/")) {
+    try {
+      const url = new URL(filePath);
+      const key = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+      if (!key.startsWith(`${S3_ROOT_FOLDER}/`)) return;
+      const client = new S3Client({
+        region: aws.region,
+        credentials: {
+          accessKeyId: aws.accessKeyId,
+          secretAccessKey: aws.secretAccessKey,
+        },
+      });
+      await client.send(
+        new DeleteObjectCommand({
+          Bucket: aws.bucket,
+          Key: key,
+        })
+      );
+    } catch (e) {
+      console.error("S3 delete failed", e);
+    }
+    return;
+  }
+
+  if (filePath.startsWith("/uploads/")) {
+    try {
+      await unlink(path.join(process.cwd(), "public", filePath));
+    } catch {
+      // ignore missing local files
+    }
+  }
 }
 
 function mimeExt(type: string) {

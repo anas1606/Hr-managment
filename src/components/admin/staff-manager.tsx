@@ -1,9 +1,11 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { format } from "date-fns";
 import {
   Eye,
   EyeOff,
+  FileText,
   Pencil,
   Trash2,
   Upload,
@@ -19,6 +21,15 @@ type Staff = {
   phone: string;
   department: string;
   isActive: boolean;
+};
+
+type StaffDocument = {
+  id: string;
+  title: string;
+  fileName: string;
+  filePath: string;
+  createdAt: string;
+  user: { id: string; name: string; username: string };
 };
 
 const emptyForm = {
@@ -44,6 +55,10 @@ export function StaffManager() {
   const [slipFile, setSlipFile] = useState<File | null>(null);
   const [slipBusy, setSlipBusy] = useState(false);
   const [slipMsg, setSlipMsg] = useState("");
+  const [docStaffId, setDocStaffId] = useState("");
+  const [documents, setDocuments] = useState<StaffDocument[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [docMsg, setDocMsg] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch("/api/staff");
@@ -51,9 +66,28 @@ export function StaffManager() {
     setStaff(json.staff || []);
   }, []);
 
+  const loadDocuments = useCallback(async () => {
+    setDocsLoading(true);
+    setDocMsg("");
+    const params = docStaffId ? `?userId=${encodeURIComponent(docStaffId)}` : "";
+    const res = await fetch(`/api/admin/documents${params}`);
+    const json = await res.json();
+    setDocsLoading(false);
+    if (!res.ok) {
+      setDocMsg(json.error || "Failed to load documents");
+      setDocuments([]);
+      return;
+    }
+    setDocuments(json.documents || []);
+  }, [docStaffId]);
+
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
 
   function startEdit(s: Staff) {
     setEditingId(s.id);
@@ -107,6 +141,21 @@ export function StaffManager() {
     if (!confirm("Delete this staff member?")) return;
     await fetch(`/api/staff/${id}`, { method: "DELETE" });
     load();
+  }
+
+  async function removeDocument(id: string) {
+    if (!confirm("Delete this staff document? This cannot be undone.")) return;
+    setDocMsg("");
+    const res = await fetch(`/api/admin/documents?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setDocMsg(json.error || "Failed to delete document");
+      return;
+    }
+    setDocMsg("Document deleted");
+    loadDocuments();
   }
 
   async function uploadSlip(e: FormEvent) {
@@ -242,6 +291,82 @@ export function StaffManager() {
           ) : null}
         </div>
       </form>
+
+      <section className="liquid-glass space-y-4 rounded-[24px] p-4 sm:rounded-[28px] sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-soft-blue text-primary">
+              <FileText className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Staff documents</p>
+              <p className="text-xs text-subtext">
+                View or delete files uploaded by staff
+              </p>
+            </div>
+          </div>
+          <select
+            value={docStaffId}
+            onChange={(e) => setDocStaffId(e.target.value)}
+            className="field-input w-auto min-w-[180px]"
+          >
+            <option value="">All staff</option>
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {docMsg ? <p className="text-sm text-primary">{docMsg}</p> : null}
+
+        <ul className="space-y-2">
+          {documents.map((doc) => (
+            <li
+              key={doc.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-soft-blue-2/70 px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium">{doc.title}</p>
+                <p className="truncate text-xs text-subtext">
+                  {doc.user.name} · {doc.fileName} ·{" "}
+                  {format(new Date(doc.createdAt), "MMM d, yyyy")}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={doc.filePath}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-soft-blue px-2.5 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  View
+                </a>
+                <button
+                  type="button"
+                  onClick={() => removeDocument(doc.id)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-danger transition hover:bg-danger hover:text-white"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+          {!docsLoading && documents.length === 0 ? (
+            <li className="rounded-2xl bg-soft-blue-2/40 px-4 py-8 text-center text-sm text-subtext">
+              No staff documents found
+            </li>
+          ) : null}
+          {docsLoading ? (
+            <li className="rounded-2xl px-4 py-6 text-center text-sm text-subtext">
+              Loading documents...
+            </li>
+          ) : null}
+        </ul>
+      </section>
 
       <form
         onSubmit={uploadSlip}
