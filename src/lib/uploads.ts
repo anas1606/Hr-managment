@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
-import { put } from "@vercel/blob";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
-/** Vercel serverless body limit is ~4.5MB — keep under that for server uploads. */
+/** Keep under Vercel serverless body limit (~4.5MB). */
 const MAX_BYTES = 4 * 1024 * 1024;
 const ALLOWED = new Set([
   "application/pdf",
@@ -11,15 +11,22 @@ const ALLOWED = new Set([
   "image/png",
   "image/webp",
 ]);
-
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-function useBlobStorage() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+/** Root folder in the shared AVX S3 bucket */
+const S3_ROOT_FOLDER = "Hr-management";
+
+function s3Config() {
+  const bucket = process.env.AWS_S3_BUCKET;
+  const region = process.env.AWS_S3_REGION || "ap-south-1";
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  if (!bucket || !accessKeyId || !secretAccessKey) return null;
+  return { bucket, region, accessKeyId, secretAccessKey };
 }
 
-function isVercelRuntime() {
-  return process.env.VERCEL === "1";
+function publicUrl(bucket: string, region: string, key: string) {
+  return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
 }
 
 export async function saveUpload(
@@ -46,33 +53,45 @@ export async function saveUpload(
     .slice(0, 40);
   const unique = `${Date.now()}-${randomBytes(4).toString("hex")}`;
   const storedName = `${safeBase || "file"}-${unique}${ext}`;
-  const pathname = `${folder.replace(/\\/g, "/")}/${storedName}`;
+  const relativeFolder = folder.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
 
-  // On Vercel, local disk is ephemeral — Blob storage is required.
-  if (isVercelRuntime() && !useBlobStorage()) {
-    throw new Error(
-      "File storage is not configured. Add BLOB_READ_WRITE_TOKEN from Vercel Storage → Blob."
-    );
-  }
-
-  if (useBlobStorage()) {
-    const blob = await put(pathname, file, {
-      access: "public",
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-      addRandomSuffix: false,
-      contentType: file.type,
+  const aws = s3Config();
+  if (aws) {
+    const key = `${S3_ROOT_FOLDER}/${relativeFolder}/${storedName}`;
+    const client = new S3Client({
+      region: aws.region,
+      credentials: {
+        accessKeyId: aws.accessKeyId,
+        secretAccessKey: aws.secretAccessKey,
+      },
     });
+
+    const body = Buffer.from(await file.arrayBuffer());
+    await client.send(
+      new PutObjectCommand({
+        Bucket: aws.bucket,
+        Key: key,
+        Body: body,
+        ContentType: file.type,
+      })
+    );
+
     return {
       fileName: file.name,
-      filePath: blob.url,
+      filePath: publicUrl(aws.bucket, aws.region, key),
     };
   }
 
-  // Local development only
-  const relativeDir = path.join("uploads", folder);
+  // Local fallback when AWS env vars are not set
+  if (process.env.VERCEL === "1") {
+    throw new Error(
+      "S3 is not configured. Set AWS_S3_BUCKET, AWS_S3_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY."
+    );
+  }
+
+  const relativeDir = path.join("uploads", relativeFolder);
   const absoluteDir = path.join(process.cwd(), "public", relativeDir);
   await mkdir(absoluteDir, { recursive: true });
-
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(path.join(absoluteDir, storedName), buffer);
 
