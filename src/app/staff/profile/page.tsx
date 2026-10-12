@@ -503,7 +503,7 @@ export default function StaffProfilePage() {
                 <div>
                   <p className="text-sm font-semibold">Upload document</p>
                   <p className="mt-0.5 text-xs text-subtext">
-                    ID proof, offer letter, certificates — PDF or image, max 8MB
+                    ID proof, offer letter, certificates — PDF or image, max 4MB
                   </p>
                 </div>
                 <input

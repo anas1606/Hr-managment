@@ -1,8 +1,10 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
+import { put } from "@vercel/blob";
 
-const MAX_BYTES = 8 * 1024 * 1024;
+/** Vercel serverless body limit is ~4.5MB — keep under that for server uploads. */
+const MAX_BYTES = 4 * 1024 * 1024;
 const ALLOWED = new Set([
   "application/pdf",
   "image/jpeg",
@@ -11,6 +13,14 @@ const ALLOWED = new Set([
 ]);
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+function useBlobStorage() {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
+function isVercelRuntime() {
+  return process.env.VERCEL === "1";
+}
 
 export async function saveUpload(
   file: File,
@@ -26,7 +36,7 @@ export async function saveUpload(
     );
   }
   if (file.size > MAX_BYTES) {
-    throw new Error("File must be 8MB or smaller");
+    throw new Error("File must be 4MB or smaller");
   }
 
   const ext = path.extname(file.name) || mimeExt(file.type);
@@ -35,17 +45,40 @@ export async function saveUpload(
     .replace(/[^a-zA-Z0-9-_]/g, "_")
     .slice(0, 40);
   const unique = `${Date.now()}-${randomBytes(4).toString("hex")}`;
-  const fileName = `${safeBase || "file"}-${unique}${ext}`;
+  const storedName = `${safeBase || "file"}-${unique}${ext}`;
+  const pathname = `${folder.replace(/\\/g, "/")}/${storedName}`;
+
+  // On Vercel, local disk is ephemeral — Blob storage is required.
+  if (isVercelRuntime() && !useBlobStorage()) {
+    throw new Error(
+      "File storage is not configured. Add BLOB_READ_WRITE_TOKEN from Vercel Storage → Blob."
+    );
+  }
+
+  if (useBlobStorage()) {
+    const blob = await put(pathname, file, {
+      access: "public",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+      addRandomSuffix: false,
+      contentType: file.type,
+    });
+    return {
+      fileName: file.name,
+      filePath: blob.url,
+    };
+  }
+
+  // Local development only
   const relativeDir = path.join("uploads", folder);
   const absoluteDir = path.join(process.cwd(), "public", relativeDir);
   await mkdir(absoluteDir, { recursive: true });
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(absoluteDir, fileName), buffer);
+  await writeFile(path.join(absoluteDir, storedName), buffer);
 
   return {
     fileName: file.name,
-    filePath: `/${relativeDir.replace(/\\/g, "/")}/${fileName}`,
+    filePath: `/${relativeDir.replace(/\\/g, "/")}/${storedName}`,
   };
 }
 
