@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { toDateOnly } from "@/lib/utils";
-import { format } from "date-fns";
+import { formatDateOnly, toDateOnly } from "@/lib/utils";
+import { formatInTimeZone } from "date-fns-tz";
 
 export async function GET(req: NextRequest) {
   const { error, status, session } = await requireSession(["ADMIN"]);
@@ -60,13 +60,17 @@ export async function GET(req: NextRequest) {
             )
           : "";
       return [
-        format(r.date, "yyyy-MM-dd"),
+        formatDateOnly(r.date, "yyyy-MM-dd"),
         r.user.name,
         r.user.username,
         r.user.staffProfile?.employeeId || "",
         r.user.staffProfile?.department || "",
-        r.checkInAt ? format(r.checkInAt, "HH:mm") : "",
-        r.checkOutAt ? format(r.checkOutAt, "HH:mm") : "",
+        r.checkInAt
+          ? formatInTimeZone(r.checkInAt, "Asia/Kolkata", "HH:mm")
+          : "",
+        r.checkOutAt
+          ? formatInTimeZone(r.checkOutAt, "Asia/Kolkata", "HH:mm")
+          : "",
         String(minutes),
       ]
         .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)

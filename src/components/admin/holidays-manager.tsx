@@ -1,8 +1,8 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { format } from "date-fns";
 import { CalendarPlus, Trash2 } from "lucide-react";
+import { formatDateOnly } from "@/lib/utils";
 
 type Holiday = { id: string; date: string; name: string };
 
@@ -118,7 +118,7 @@ export function HolidaysManager() {
             <div>
               <p className="font-medium">{h.name}</p>
               <p className="text-sm text-subtext">
-                {format(new Date(h.date), "EEEE, MMM d, yyyy")}
+                {formatDateOnly(h.date, "EEEE, MMM d, yyyy")}
               </p>
             </div>
             <button

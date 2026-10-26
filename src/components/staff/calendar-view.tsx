@@ -24,6 +24,7 @@ import Link from "next/link";
 import {
   breakSeconds,
   cn,
+  formatDateOnly,
   formatDuration,
   formatHours,
   formatOverallHours,
@@ -268,7 +269,7 @@ export function CalendarView() {
                     >
                       <span className="font-medium">{h.name}</span>
                       <span className="text-subtext">
-                        {format(new Date(h.date), "MMM d")}
+                        {formatDateOnly(h.date, "MMM d")}
                       </span>
                     </li>
                   ))}

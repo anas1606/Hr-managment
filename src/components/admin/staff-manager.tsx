@@ -3,15 +3,19 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
 import {
+  Building2,
+  Download,
   Eye,
   EyeOff,
   FileText,
   Pencil,
+  Search,
   Trash2,
-  Upload,
   UserPlus,
   WalletCards,
+  X,
 } from "lucide-react";
+import { UserAvatar } from "@/components/staff/user-avatar";
 
 type Staff = {
   id: string;
@@ -29,7 +33,28 @@ type StaffDocument = {
   fileName: string;
   filePath: string;
   createdAt: string;
-  user: { id: string; name: string; username: string };
+  user?: { id: string; name: string; username: string };
+};
+
+type SalarySlip = {
+  id: string;
+  month: number;
+  year: number;
+  fileName: string;
+  filePath: string;
+  netPay: number | null;
+  createdAt: string;
+};
+
+type StaffDetail = Staff & {
+  avatarPath: string | null;
+  bankAccountHolder: string;
+  bankName: string;
+  accountNumber: string;
+  ifscCode: string;
+  branchName: string;
+  documents: StaffDocument[];
+  slips: SalarySlip[];
 };
 
 const emptyForm = {
@@ -48,17 +73,11 @@ export function StaffManager() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [slipStaffId, setSlipStaffId] = useState("");
-  const [slipMonth, setSlipMonth] = useState(String(new Date().getMonth() + 1));
-  const [slipYear, setSlipYear] = useState(String(new Date().getFullYear()));
-  const [slipNetPay, setSlipNetPay] = useState("");
-  const [slipFile, setSlipFile] = useState<File | null>(null);
-  const [slipBusy, setSlipBusy] = useState(false);
-  const [slipMsg, setSlipMsg] = useState("");
-  const [docStaffId, setDocStaffId] = useState("");
-  const [documents, setDocuments] = useState<StaffDocument[]>([]);
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [docMsg, setDocMsg] = useState("");
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<StaffDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch("/api/staff");
@@ -66,28 +85,40 @@ export function StaffManager() {
     setStaff(json.staff || []);
   }, []);
 
-  const loadDocuments = useCallback(async () => {
-    setDocsLoading(true);
-    setDocMsg("");
-    const params = docStaffId ? `?userId=${encodeURIComponent(docStaffId)}` : "";
-    const res = await fetch(`/api/admin/documents${params}`);
-    const json = await res.json();
-    setDocsLoading(false);
-    if (!res.ok) {
-      setDocMsg(json.error || "Failed to load documents");
-      setDocuments([]);
-      return;
-    }
-    setDocuments(json.documents || []);
-  }, [docStaffId]);
-
   useEffect(() => {
     load();
   }, [load]);
 
+  const loadDetail = useCallback(async (id: string) => {
+    setDetailLoading(true);
+    setDetailError("");
+    const res = await fetch(`/api/staff/${id}`);
+    const json = await res.json();
+    setDetailLoading(false);
+    if (!res.ok) {
+      setDetail(null);
+      setDetailError(json.error || "Failed to load staff details");
+      return;
+    }
+    setDetail(json.staff || null);
+  }, []);
+
   useEffect(() => {
-    loadDocuments();
-  }, [loadDocuments]);
+    if (!selectedId) {
+      setDetail(null);
+      return;
+    }
+    loadDetail(selectedId);
+  }, [selectedId, loadDetail]);
+
+  const filteredStaff = staff.filter((s) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return [s.name, s.username, s.employeeId, s.phone, s.department]
+      .join(" ")
+      .toLowerCase()
+      .includes(q);
+  });
 
   function startEdit(s: Staff) {
     setEditingId(s.id);
@@ -145,46 +176,16 @@ export function StaffManager() {
 
   async function removeDocument(id: string) {
     if (!confirm("Delete this staff document? This cannot be undone.")) return;
-    setDocMsg("");
+    setDetailError("");
     const res = await fetch(`/api/admin/documents?id=${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
     const json = await res.json();
     if (!res.ok) {
-      setDocMsg(json.error || "Failed to delete document");
+      setDetailError(json.error || "Failed to delete document");
       return;
     }
-    setDocMsg("Document deleted");
-    loadDocuments();
-  }
-
-  async function uploadSlip(e: FormEvent) {
-    e.preventDefault();
-    if (!slipStaffId || !slipFile) {
-      setSlipMsg("Select staff and a file");
-      return;
-    }
-    setSlipBusy(true);
-    setSlipMsg("");
-    const formData = new FormData();
-    formData.set("userId", slipStaffId);
-    formData.set("month", slipMonth);
-    formData.set("year", slipYear);
-    if (slipNetPay) formData.set("netPay", slipNetPay);
-    formData.set("file", slipFile);
-    const res = await fetch("/api/admin/salary-slips", {
-      method: "POST",
-      body: formData,
-    });
-    const json = await res.json();
-    setSlipBusy(false);
-    if (!res.ok) {
-      setSlipMsg(json.error || "Upload failed");
-      return;
-    }
-    setSlipFile(null);
-    setSlipNetPay("");
-    setSlipMsg("Salary slip uploaded for staff profile");
+    if (selectedId) loadDetail(selectedId);
   }
 
   return (
@@ -292,187 +293,24 @@ export function StaffManager() {
         </div>
       </form>
 
-      <section className="liquid-glass space-y-4 rounded-[24px] p-4 sm:rounded-[28px] sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-soft-blue text-primary">
-              <FileText className="h-4 w-4" />
-            </span>
-            <div>
-              <p className="text-sm font-semibold">Staff documents</p>
-              <p className="text-xs text-subtext">
-                View or delete files uploaded by staff
-              </p>
-            </div>
-          </div>
-          <select
-            value={docStaffId}
-            onChange={(e) => setDocStaffId(e.target.value)}
-            className="field-input w-auto min-w-[180px]"
-          >
-            <option value="">All staff</option>
-            {staff.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {docMsg ? <p className="text-sm text-primary">{docMsg}</p> : null}
-
-        <ul className="space-y-2">
-          {documents.map((doc) => (
-            <li
-              key={doc.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-soft-blue-2/70 px-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{doc.title}</p>
-                <p className="truncate text-xs text-subtext">
-                  {doc.user.name} · {doc.fileName} ·{" "}
-                  {format(new Date(doc.createdAt), "MMM d, yyyy")}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={doc.filePath}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-soft-blue px-2.5 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  View
-                </a>
-                <button
-                  type="button"
-                  onClick={() => removeDocument(doc.id)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-danger transition hover:bg-danger hover:text-white"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-          {!docsLoading && documents.length === 0 ? (
-            <li className="rounded-2xl bg-soft-blue-2/40 px-4 py-8 text-center text-sm text-subtext">
-              No staff documents found
-            </li>
-          ) : null}
-          {docsLoading ? (
-            <li className="rounded-2xl px-4 py-6 text-center text-sm text-subtext">
-              Loading documents...
-            </li>
-          ) : null}
-        </ul>
-      </section>
-
-      <form
-        onSubmit={uploadSlip}
-        className="liquid-glass grid grid-cols-1 gap-3 rounded-[24px] p-4 sm:rounded-[28px] sm:p-5 md:grid-cols-2"
-      >
-        <div className="mb-1 flex items-center gap-2 md:col-span-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-soft-blue text-primary">
-            <WalletCards className="h-4 w-4" />
-          </span>
+      <div className="liquid-glass overflow-hidden rounded-[24px] sm:rounded-[28px]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/60 px-4 py-4">
           <div>
-            <p className="text-sm font-semibold">Upload salary slip</p>
+            <p className="text-sm font-semibold">Staff list</p>
             <p className="text-xs text-subtext">
-              Appears under staff Profile → Salary slips
+              Search a person, then open their profile, documents, and bank details
             </p>
           </div>
+          <label className="relative w-full sm:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtext" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name, ID, phone..."
+              className="field-input pl-9"
+            />
+          </label>
         </div>
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-subtext">
-            Staff
-          </span>
-          <select
-            required
-            value={slipStaffId}
-            onChange={(e) => setSlipStaffId(e.target.value)}
-            className="field-input"
-          >
-            <option value="">Select staff</option>
-            {staff.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-subtext">
-            Net pay (optional)
-          </span>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={slipNetPay}
-            onChange={(e) => setSlipNetPay(e.target.value)}
-            className="field-input"
-            placeholder="e.g. 45000"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-subtext">
-            Month
-          </span>
-          <select
-            value={slipMonth}
-            onChange={(e) => setSlipMonth(e.target.value)}
-            className="field-input"
-          >
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-              <option key={m} value={m}>
-                {new Date(2026, m - 1, 1).toLocaleString("en", {
-                  month: "long",
-                })}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-subtext">
-            Year
-          </span>
-          <input
-            type="number"
-            required
-            min="2000"
-            value={slipYear}
-            onChange={(e) => setSlipYear(e.target.value)}
-            className="field-input"
-          />
-        </label>
-        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/30 bg-soft-blue/40 px-4 py-5 text-center transition hover:bg-soft-blue md:col-span-2">
-          <Upload className="h-5 w-5 text-primary" />
-          <span className="text-sm font-medium text-primary">
-            {slipFile ? slipFile.name : "Choose PDF or image"}
-          </span>
-          <input
-            type="file"
-            accept=".pdf,image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={(e) => setSlipFile(e.target.files?.[0] || null)}
-          />
-        </label>
-        {slipMsg ? (
-          <p className="text-sm text-primary md:col-span-2">{slipMsg}</p>
-        ) : null}
-        <div className="md:col-span-2">
-          <button
-            type="submit"
-            disabled={slipBusy}
-            className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-60"
-          >
-            {slipBusy ? "Uploading..." : "Upload salary slip"}
-          </button>
-        </div>
-      </form>
-
-      <div className="liquid-glass overflow-hidden rounded-[24px] sm:rounded-[28px]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
@@ -486,7 +324,7 @@ export function StaffManager() {
               </tr>
             </thead>
             <tbody>
-              {staff.map((s) => (
+              {filteredStaff.map((s) => (
                 <tr
                   key={s.id}
                   className="border-t border-white/50 transition hover:bg-white/40"
@@ -509,6 +347,13 @@ export function StaffManager() {
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => setSelectedId(s.id)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-soft-blue px-2.5 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Details
+                      </button>
+                      <button
                         onClick={() => startEdit(s)}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-soft-blue px-2.5 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white"
                       >
@@ -526,19 +371,251 @@ export function StaffManager() {
                   </td>
                 </tr>
               ))}
-              {staff.length === 0 ? (
+              {filteredStaff.length === 0 ? (
                 <tr>
                   <td
                     colSpan={6}
                     className="px-4 py-10 text-center text-subtext"
                   >
-                    No staff accounts yet
+                    {staff.length === 0
+                      ? "No staff accounts yet"
+                      : "No staff match that search"}
                   </td>
                 </tr>
               ) : null}
             </tbody>
           </table>
         </div>
+      </div>
+
+      {selectedId ? (
+        <StaffDetailPanel
+          detail={detail}
+          loading={detailLoading}
+          error={detailError}
+          onClose={() => setSelectedId(null)}
+          onDeleteDocument={removeDocument}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function StaffDetailPanel({
+  detail,
+  loading,
+  error,
+  onClose,
+  onDeleteDocument,
+}: {
+  detail: StaffDetail | null;
+  loading: boolean;
+  error: string;
+  onClose: () => void;
+  onDeleteDocument: (id: string) => void;
+}) {
+  const bankRows = detail
+    ? [
+        ["Account holder", detail.bankAccountHolder],
+        ["Bank", detail.bankName],
+        ["Account number", detail.accountNumber],
+        ["IFSC", detail.ifscCode],
+        ["Branch", detail.branchName],
+      ]
+    : [];
+  const hasBank = bankRows.some(([, value]) => value);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-3 sm:items-center sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="liquid-glass max-h-[92dvh] w-full max-w-3xl overflow-y-auto rounded-[28px] p-4 sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-5 flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <UserAvatar
+              name={detail?.name}
+              avatarPath={detail?.avatarPath}
+              className="h-14 w-14 shrink-0 rounded-2xl"
+              textClassName="font-heading text-xl"
+            />
+            <div className="min-w-0">
+              <p className="truncate font-heading text-xl font-semibold">
+                {detail?.name || "Staff details"}
+              </p>
+              <p className="truncate text-sm text-subtext">
+                {detail
+                  ? `@${detail.username} · ${detail.employeeId || "No employee ID"}`
+                  : "Loading profile"}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl bg-white/70 p-2 text-subtext transition hover:text-primary"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {error ? (
+          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-danger">
+            {error}
+          </p>
+        ) : null}
+        {loading && !detail ? (
+          <p className="py-10 text-center text-sm text-subtext">
+            Loading staff details...
+          </p>
+        ) : null}
+
+        {detail ? (
+          <div className="space-y-4">
+            <section className="rounded-[22px] border border-white/70 bg-white/50 p-4">
+              <p className="mb-3 text-sm font-semibold">Profile</p>
+              <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {[
+                  ["Phone", detail.phone],
+                  ["Department", detail.department],
+                  ["Employee ID", detail.employeeId],
+                  ["Status", detail.isActive ? "Active" : "Inactive"],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-2xl bg-soft-blue-2/80 px-4 py-3"
+                  >
+                    <dt className="text-[11px] font-medium uppercase tracking-wide text-subtext">
+                      {label}
+                    </dt>
+                    <dd className="mt-1 break-all text-sm font-medium">
+                      {value || "—"}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+
+            <section className="rounded-[22px] border border-white/70 bg-white/50 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                <p className="text-sm font-semibold">Bank details</p>
+              </div>
+              {hasBank ? (
+                <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {bankRows.map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="rounded-2xl bg-soft-blue-2/80 px-4 py-3"
+                    >
+                      <dt className="text-[11px] font-medium uppercase tracking-wide text-subtext">
+                        {label}
+                      </dt>
+                      <dd className="mt-1 break-all text-sm font-medium">
+                        {value || "—"}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="rounded-2xl bg-soft-blue-2/50 px-4 py-6 text-center text-sm text-subtext">
+                  No bank details saved
+                </p>
+              )}
+            </section>
+
+            <section className="rounded-[22px] border border-white/70 bg-white/50 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                <p className="text-sm font-semibold">Documents</p>
+              </div>
+              <ul className="space-y-2">
+                {detail.documents.map((doc) => (
+                  <li
+                    key={doc.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-soft-blue-2/70 px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{doc.title}</p>
+                      <p className="truncate text-xs text-subtext">
+                        {doc.fileName} ·{" "}
+                        {format(new Date(doc.createdAt), "MMM d, yyyy")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={doc.filePath}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-soft-blue px-2.5 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteDocument(doc.id)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-danger transition hover:bg-danger hover:text-white"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                    </div>
+                  </li>
+                ))}
+                {detail.documents.length === 0 ? (
+                  <li className="rounded-2xl bg-soft-blue-2/50 px-4 py-6 text-center text-sm text-subtext">
+                    No documents uploaded
+                  </li>
+                ) : null}
+              </ul>
+            </section>
+
+            <section className="rounded-[22px] border border-white/70 bg-white/50 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <WalletCards className="h-4 w-4 text-primary" />
+                <p className="text-sm font-semibold">Salary slips</p>
+              </div>
+              <ul className="space-y-2">
+                {detail.slips.map((slip) => (
+                  <li
+                    key={slip.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-soft-blue-2/70 px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium">
+                        {format(new Date(slip.year, slip.month - 1, 1), "MMMM yyyy")}
+                      </p>
+                      <p className="truncate text-xs text-subtext">
+                        {slip.netPay != null
+                          ? `Net pay · ₹${slip.netPay.toLocaleString("en-IN")}`
+                          : slip.fileName}
+                      </p>
+                    </div>
+                    <a
+                      href={slip.filePath}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-soft-blue px-2.5 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary hover:text-white"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download
+                    </a>
+                  </li>
+                ))}
+                {detail.slips.length === 0 ? (
+                  <li className="rounded-2xl bg-soft-blue-2/50 px-4 py-6 text-center text-sm text-subtext">
+                    No salary slips uploaded
+                  </li>
+                ) : null}
+              </ul>
+            </section>
+          </div>
+        ) : null}
       </div>
     </div>
   );

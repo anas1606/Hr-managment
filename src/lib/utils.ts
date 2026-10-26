@@ -1,20 +1,62 @@
-import { format, parseISO, startOfDay } from "date-fns";
+import { format } from "date-fns";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 
-export function todayDate(): Date {
-  return startOfDay(new Date());
+/** App timezone — India Standard Time */
+export const APP_TZ = "Asia/Kolkata";
+
+/** Today's calendar date in IST as yyyy-MM-dd */
+export function todayYmdIST(now = new Date()): string {
+  return formatInTimeZone(now, APP_TZ, "yyyy-MM-dd");
 }
 
+/**
+ * Convert a calendar date (yyyy-MM-dd or Date) to a Prisma-safe @db.Date value.
+ * Uses UTC noon so the calendar day does not shift across timezones.
+ */
 export function toDateOnly(value: string | Date): Date {
-  if (typeof value === "string") {
-    return startOfDay(parseISO(value));
+  const ymd =
+    typeof value === "string"
+      ? value.slice(0, 10)
+      : formatInTimeZone(value, APP_TZ, "yyyy-MM-dd");
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+    throw new Error("Invalid date");
   }
-  return startOfDay(value);
+
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+}
+
+/** Today's calendar date in IST (for attendance / leaves). */
+export function todayDate(now = new Date()): Date {
+  return toDateOnly(todayYmdIST(now));
+}
+
+/**
+ * Build an absolute Date from an IST wall-clock date + time.
+ * Example: ("2026-10-12", "10:00") → 2026-10-12 10:00 IST.
+ */
+export function istDateTime(dateStr: string, timeStr: string): Date {
+  const date = dateStr.slice(0, 10);
+  const time = timeStr.length === 5 ? `${timeStr}:00` : timeStr;
+  return fromZonedTime(`${date}T${time}`, APP_TZ);
+}
+
+/** Format a DATE column for display (calendar day, no TZ shift). */
+export function formatDateOnly(
+  value: Date | string | null | undefined,
+  pattern = "MMM d, yyyy"
+): string {
+  if (!value) return "—";
+  const date = typeof value === "string" ? new Date(value) : value;
+  // Stored as UTC noon / midnight of the calendar day — read UTC parts.
+  return formatInTimeZone(date, "UTC", pattern);
 }
 
 export function formatTime(value: Date | string | null | undefined): string {
   if (!value) return "--:--";
   const date = typeof value === "string" ? new Date(value) : value;
-  return format(date, "hh:mm a");
+  return formatInTimeZone(date, APP_TZ, "hh:mm a");
 }
 
 export function formatDuration(totalSeconds: number): string {
@@ -90,7 +132,7 @@ export function formatOverallHours(
 }
 
 export function greetingForNow(date = new Date()): string {
-  const hour = date.getHours();
+  const hour = Number(formatInTimeZone(date, APP_TZ, "H"));
   if (hour < 12) return "Good morning!";
   if (hour < 17) return "Good afternoon!";
   return "Good evening!";
@@ -99,3 +141,14 @@ export function greetingForNow(date = new Date()): string {
 export function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
+
+/** @deprecated prefer formatDateOnly — kept for any leftover imports */
+export function formatLocalDate(
+  value: Date | string,
+  pattern = "MMM d, yyyy"
+): string {
+  return formatDateOnly(value, pattern);
+}
+
+// re-export format for non-date formatting needs
+export { format };

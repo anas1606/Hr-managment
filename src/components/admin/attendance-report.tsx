@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Download } from "lucide-react";
-import { formatHours, formatTime } from "@/lib/utils";
+import { ClipboardPlus, Download } from "lucide-react";
+import { formatDateOnly, formatHours, formatTime } from "@/lib/utils";
 
 type StaffOption = { id: string; name: string };
 type RecordRow = {
@@ -24,6 +24,16 @@ export function AttendanceReport() {
   const [userId, setUserId] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+
+  const [manualUserId, setManualUserId] = useState("");
+  const [manualDate, setManualDate] = useState(
+    () => format(new Date(), "yyyy-MM-dd")
+  );
+  const [manualCheckIn, setManualCheckIn] = useState("10:00");
+  const [manualCheckOut, setManualCheckOut] = useState("19:00");
+  const [manualBusy, setManualBusy] = useState(false);
+  const [manualMsg, setManualMsg] = useState("");
+  const [manualError, setManualError] = useState("");
 
   useEffect(() => {
     fetch("/api/staff")
@@ -61,6 +71,33 @@ export function AttendanceReport() {
     window.location.href = `/api/attendance?${params.toString()}`;
   }
 
+  async function pushManualAttendance(e: FormEvent) {
+    e.preventDefault();
+    setManualBusy(true);
+    setManualMsg("");
+    setManualError("");
+    const res = await fetch("/api/attendance/manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: manualUserId,
+        date: manualDate,
+        checkInTime: manualCheckIn,
+        checkOutTime: manualCheckOut || undefined,
+      }),
+    });
+    const json = await res.json();
+    setManualBusy(false);
+    if (!res.ok) {
+      setManualError(json.error || "Failed to save attendance");
+      return;
+    }
+    setManualMsg(
+      `Attendance saved for ${json.record?.user?.name || "staff"} on ${manualDate}`
+    );
+    load();
+  }
+
   return (
     <div className="space-y-5 sm:space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -69,7 +106,7 @@ export function AttendanceReport() {
             Attendance report
           </h1>
           <p className="mt-1 text-sm text-subtext">
-            Filter by staff and date range
+            Filter by staff and date range, or push attendance manually
           </p>
         </div>
         <button
@@ -80,6 +117,101 @@ export function AttendanceReport() {
           Export CSV
         </button>
       </div>
+
+      <form
+        onSubmit={pushManualAttendance}
+        className="liquid-glass grid grid-cols-1 gap-3 rounded-[24px] p-4 sm:rounded-[28px] sm:p-5 md:grid-cols-2 lg:grid-cols-5"
+      >
+        <div className="flex items-center gap-2 md:col-span-2 lg:col-span-5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-soft-blue text-primary">
+            <ClipboardPlus className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">Manual attendance</p>
+            <p className="text-xs text-subtext">
+              Admin-only — creates or updates the record for that staff & date
+            </p>
+          </div>
+        </div>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-subtext">
+            Staff
+          </span>
+          <select
+            required
+            value={manualUserId}
+            onChange={(e) => setManualUserId(e.target.value)}
+            className="field-input"
+          >
+            <option value="">Select staff</option>
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-subtext">
+            Date
+          </span>
+          <input
+            type="date"
+            required
+            value={manualDate}
+            onChange={(e) => setManualDate(e.target.value)}
+            className="field-input"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-subtext">
+            Check in
+          </span>
+          <input
+            type="time"
+            required
+            value={manualCheckIn}
+            onChange={(e) => setManualCheckIn(e.target.value)}
+            className="field-input"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium text-subtext">
+            Check out (optional)
+          </span>
+          <input
+            type="time"
+            value={manualCheckOut}
+            onChange={(e) => setManualCheckOut(e.target.value)}
+            className="field-input"
+          />
+        </label>
+
+        <div className="flex items-end">
+          <button
+            type="submit"
+            disabled={manualBusy}
+            className="w-full rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:opacity-60"
+          >
+            {manualBusy ? "Saving..." : "Push attendance"}
+          </button>
+        </div>
+
+        {manualError ? (
+          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-danger md:col-span-2 lg:col-span-5">
+            {manualError}
+          </p>
+        ) : null}
+        {manualMsg ? (
+          <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700 md:col-span-2 lg:col-span-5">
+            {manualMsg}
+          </p>
+        ) : null}
+      </form>
 
       <div className="liquid-glass grid grid-cols-1 gap-3 rounded-[24px] p-4 sm:rounded-[28px] sm:p-5 md:grid-cols-4">
         <select
@@ -134,7 +266,7 @@ export function AttendanceReport() {
                   className="border-t border-white/50 transition hover:bg-white/40"
                 >
                   <td className="px-4 py-3.5">
-                    {format(new Date(r.date), "MMM d, yyyy")}
+                    {formatDateOnly(r.date)}
                   </td>
                   <td className="px-4 py-3.5 font-medium">{r.user.name}</td>
                   <td className="px-4 py-3.5 text-subtext">

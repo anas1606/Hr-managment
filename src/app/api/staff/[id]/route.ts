@@ -3,6 +3,66 @@ import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { error, status, session } = await requireSession(["ADMIN"]);
+  if (error || !session) {
+    return NextResponse.json({ error }, { status });
+  }
+
+  const { id } = await params;
+  const user = await prisma.user.findUnique({
+    where: { id },
+    include: {
+      staffProfile: true,
+      documents: { orderBy: { createdAt: "desc" } },
+      salarySlips: { orderBy: [{ year: "desc" }, { month: "desc" }] },
+    },
+  });
+
+  if (!user || user.role !== "STAFF") {
+    return NextResponse.json({ error: "Staff not found" }, { status: 404 });
+  }
+
+  const profile = user.staffProfile;
+
+  return NextResponse.json({
+    staff: {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      employeeId: profile?.employeeId || "",
+      phone: profile?.phone || "",
+      department: profile?.department || "",
+      isActive: profile?.isActive ?? true,
+      avatarPath: profile?.avatarPath || null,
+      bankAccountHolder: profile?.bankAccountHolder || "",
+      bankName: profile?.bankName || "",
+      accountNumber: profile?.accountNumber || "",
+      ifscCode: profile?.ifscCode || "",
+      branchName: profile?.branchName || "",
+      documents: user.documents.map((doc) => ({
+        id: doc.id,
+        title: doc.title,
+        fileName: doc.fileName,
+        filePath: doc.filePath,
+        createdAt: doc.createdAt,
+      })),
+      slips: user.salarySlips.map((slip) => ({
+        id: slip.id,
+        month: slip.month,
+        year: slip.year,
+        fileName: slip.fileName,
+        filePath: slip.filePath,
+        netPay: slip.netPay,
+        createdAt: slip.createdAt,
+      })),
+    },
+  });
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
